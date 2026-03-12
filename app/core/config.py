@@ -1,0 +1,32 @@
+from pydantic_settings import BaseSettings
+
+
+class Settings(BaseSettings):
+
+    # Application
+    APP_NAME: str
+    APP_ENV: str
+    APP_PORT: int
+
+    # Database
+    DB_HOST: str
+    DB_PORT: int
+    DB_USER: str
+    DB_PASSWORD: str
+    DB_NAME: str
+    DATABASE_URL: str
+
+    # Security
+    SECRET_KEY: str
+    ALGORITHM: str
+    ACCESS_TOKEN_EXPIRE_MINUTES: int
+
+    # Password Hash
+    PASSWORD_HASH_SCHEME: str
+
+    class Config:
+        env_file = ".env"
+        case_sensitive = True
+
+
+settings = Settings()
