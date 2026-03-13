@@ -235,11 +235,13 @@ class Asset(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
-    asset_code = Column(String(50), unique=True)
+    employee_id = Column(Integer, ForeignKey("employees.id"))
 
-    asset_name = Column(String(100))
+    laptop_asset_id = Column(String(100))
+    access_card = Column(String(100))
+    additional_asset = Column(Text)
 
-    asset_type = Column(String(100))
+    status = Column(String(50), default="Assigned")
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, onupdate=datetime.utcnow)
@@ -286,14 +288,14 @@ class Holiday(Base):
     __tablename__ = "holidays"
 
     id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(255), nullable=False)
 
-    title = Column(String(150))
+    type = Column(String(50))   # <-- this is the change
 
-    holiday_date = Column(Date)
-
+    holiday_date = Column(Date, nullable=False)
     description = Column(Text)
 
-    created_by = Column(Integer, ForeignKey("users.id"))
+    created_by = Column(Integer)
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, onupdate=datetime.utcnow)

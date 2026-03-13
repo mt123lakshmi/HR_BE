@@ -1,6 +1,7 @@
-from sqlalchemy.orm import Session
 from datetime import date, timedelta
 from calendar import monthrange
+from sqlalchemy.orm import Session
+from sqlalchemy import and_
 
 from app.models.models import LeaveRequest, Holiday, Employee
 
@@ -11,8 +12,45 @@ def get_attendance_overview(year: int, month: int, db: Session):
     last_day = monthrange(year, month)[1]
     end_date = date(year, month, last_day)
 
-    calendar_data = []
+    # 1️⃣ Fetch holidays for the month (1 query)
+    holidays = db.query(Holiday).filter(
+        Holiday.holiday_date.between(start_date, end_date)
+    ).all()
 
+    holiday_map = {h.holiday_date: h for h in holidays}
+
+    # 2️⃣ Fetch approved leaves overlapping the month (1 query)
+    leaves = db.query(LeaveRequest, Employee).join(
+        Employee, Employee.id == LeaveRequest.employee_id
+    ).filter(
+        LeaveRequest.status == "Approved",
+        LeaveRequest.start_date <= end_date,
+        LeaveRequest.end_date >= start_date
+    ).all()
+
+    leave_map = {}
+
+    for leave, employee in leaves:
+
+        current = leave.start_date
+
+        while current <= leave.end_date:
+
+            if start_date <= current <= end_date:
+
+                if current not in leave_map:
+                    leave_map[current] = []
+
+                leave_map[current].append({
+                    "employee": employee.name,
+                    "leave_type": leave.leave_type,
+                    "reason": leave.reason
+                })
+
+            current += timedelta(days=1)
+
+    # 3️⃣ Build calendar
+    calendar = []
     current_day = start_date
 
     while current_day <= end_date:
@@ -20,47 +58,26 @@ def get_attendance_overview(year: int, month: int, db: Session):
         status = "Working Day"
         description = None
 
-        # 1️⃣ Holiday check
-        holiday = db.query(Holiday).filter(
-            Holiday.holiday_date == current_day
-        ).first()
-
-        if holiday:
+        if current_day in holiday_map:
             status = "Holiday"
-            description = holiday.title
+            description = holiday_map[current_day].title
 
-        # 2️⃣ Leave check
-        leave = db.query(LeaveRequest).filter(
-            LeaveRequest.start_date <= current_day,
-            LeaveRequest.end_date >= current_day,
-            LeaveRequest.status == "Approved"
-        ).first()
-
-        if leave:
-            employee = db.query(Employee).filter(
-                Employee.id == leave.employee_id
-            ).first()
-
+        elif current_day in leave_map:
             status = "Employee Leave"
-            description = f"{leave.leave_type}: {leave.reason}"
-            employee_name = employee.name if employee else None
-        else:
-            employee_name = None
+            description = leave_map[current_day]
 
-        # 3️⃣ Weekend check
-        if current_day.weekday() >= 5 and status == "Working Day":
+        elif current_day.weekday() >= 5:
             status = "Weekend"
 
-        calendar_data.append({
+        calendar.append({
             "date": current_day,
             "status": status,
-            "employee": employee_name,
-            "description": description
+            "details": description
         })
 
         current_day += timedelta(days=1)
 
-    return calendar_data
+    return calendar
 
 def get_attendance_day_details(selected_date: date, db: Session):
 
